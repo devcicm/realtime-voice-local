@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kokoro-stack",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["program.py"],
+      "port": 5500
+    }
+  ]
+}

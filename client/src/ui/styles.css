@@ -1,0 +1,119 @@
+/* Kokoro TTS — modular client styles */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0f0f17;
+  color: #ddd;
+  padding: 16px;
+  line-height: 1.4;
+}
+#app { max-width: 1200px; margin: 0 auto; }
+h1 { color: #00d4ff; margin-bottom: 4px; }
+.subtitle { color: #888; font-size: 0.85em; margin-bottom: 16px; }
+.row { display: grid; grid-template-columns: 1fr 1.8fr; gap: 16px; }
+
+.card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.card h2 { color: #00d4ff; margin-bottom: 8px; font-size: 1em; }
+.card h3 { color: #aaa; margin: 8px 0 4px; font-size: 0.9em; }
+
+.hint { color: #888; font-size: 0.8em; margin-bottom: 8px; }
+.form, .form-row { display: flex; flex-direction: column; margin-bottom: 8px; }
+.form-row label { font-size: 0.8em; color: #aaa; margin-bottom: 2px; }
+.form-row input,
+.form-row select,
+.form-row textarea {
+  background: #1a1a25;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+}
+.form-row textarea { resize: vertical; }
+.form-row input[type="checkbox"] { width: auto; }
+.form-row .check { display: flex; align-items: center; gap: 4px; font-size: 0.85em; }
+
+.btn {
+  background: #00bfff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-family: inherit;
+}
+.btn:hover { background: #00a0d4; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary { background: #444; }
+.btn-secondary:hover { background: #555; }
+
+.api-key-row {
+  border: 1px solid #443;
+  background: rgba(255, 165, 0, 0.05);
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.chat { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+.msg { padding: 6px 10px; margin-bottom: 4px; border-radius: 4px; }
+.msg.user { background: rgba(0, 153, 204, 0.2); }
+.msg.assistant { background: rgba(255, 255, 255, 0.04); }
+.msg .role { font-size: 0.7em; color: #888; margin-bottom: 2px; }
+.chat-input { display: flex; gap: 6px; }
+.chat-input input { flex: 1; }
+
+/* SyncRenderer — word highlight (R3) */
+.word[data-status="pending"]     { color: #999; }
+.word[data-status="speaking"]    { background: rgba(0, 212, 255, 0.4); border-radius: 2px; padding: 0 2px; }
+.word[data-status="spoken"]      { color: #fff; }
+.word[data-status="interrupted"] { color: #ffa502; text-decoration: line-through; }
+
+/* Inspector (R9) */
+.inspector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fsm { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; }
+.fsm .state {
+  font-family: 'Consolas', monospace;
+  font-size: 0.85em;
+  padding: 4px 6px;
+  background: rgba(0, 212, 255, 0.1);
+  border-left: 3px solid #00d4ff;
+  margin-bottom: 4px;
+}
+.fsm .history {
+  font-family: 'Consolas', monospace;
+  font-size: 0.7em;
+  color: #888;
+  max-height: 60px;
+  overflow-y: auto;
+}
+.fsm .history div { padding: 1px 0; }
+.session {
+  font-family: 'Consolas', monospace;
+  font-size: 0.7em;
+  background: rgba(0,0,0,0.3);
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+#traces-card { font-size: 0.85em; color: #aaa; }
+#traces-card .trace {
+  background: rgba(0,0,0,0.2);
+  padding: 4px 6px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+  font-family: 'Consolas', monospace;
+  font-size: 0.8em;
+}

@@ -1,0 +1,33 @@
+"""EventRepository — abstract interface for event persistence.
+
+Strategies (memory, sqlite, postgres, sqlserver, jsonl) implement this
+contract. The event loop doesn't care which backend is in use — it
+just calls ``append/get_by_correlation_id/replay``.
+"""
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Iterable, Optional
+
+
+class EventRepository(ABC):
+    @abstractmethod
+    async def append(self, event: dict) -> dict: ...
+    @abstractmethod
+    async def get_by_id(self, event_id: str) -> Optional[dict]: ...
+    @abstractmethod
+    async def get_by_correlation_id(self, correlation_id: str, limit: int = 1000) -> list[dict]: ...
+    @abstractmethod
+    async def get_by_trace_id(self, trace_id: str, limit: int = 1000) -> list[dict]: ...
+    @abstractmethod
+    async def get_by_type(self, event_type: str, limit: int = 1000) -> list[dict]: ...
+    @abstractmethod
+    async def get_since(self, seq: int, limit: int = 1000) -> list[dict]: ...
+    @abstractmethod
+    async def latest_seq(self) -> int: ...
+    @abstractmethod
+    async def count(self) -> int: ...
+    @abstractmethod
+    async def clear(self) -> None: ...
+    @abstractmethod
+    async def close(self) -> None: ...

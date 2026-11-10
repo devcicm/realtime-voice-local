@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kokoro TTS — Harness Chat Voice (modular)</title>
+    <link rel="stylesheet" href="/src/ui/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <h1>Harness Chat Voice</h1>
+      <p class="subtitle">STT (Whisper) · LLM (LM Studio) · TTS (Piper) — modular Vite client</p>
+
+      <div class="row">
+        <!-- LEFT COLUMN: services + config + mic + voice -->
+        <div>
+          <div class="card" id="config-card"></div>
+          <div class="card" id="mic-card"></div>
+          <div class="card" id="voice-card"></div>
+        </div>
+        <!-- RIGHT COLUMN: chat + inspector -->
+        <div>
+          <div class="card" id="chat-card"></div>
+          <div class="card" id="inspector-card"></div>
+          <div class="card" id="traces-card"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "$schema": "Event catalog shared between client and server. Source of truth.",
+  "version": "0.1.0",
+  "categories": {
+    "domain": "Lifecycle of a user turn (input -> LLM -> TTS -> audio playback).",
+    "communication": "Connection state and transport events.",
+    "voice_activity": "VAD and speech boundary events.",
+    "control": "User-initiated control events (interrupt, mode change).",
+    "diagnostic": "Errors, latency, and operational diagnostics."
+  },
+  "events": {
+    "USER_INPUT_RECEIVED":   { "category": "domain",       "payload": "{ text: string, source: 'text'|'stt' }" },
+    "STT_TRANSCRIBED":       { "category": "domain",       "payload": "{ text: string, lang: string, duration_ms: number, rtf: number }" },
+    "LLM_TOKEN_DELTA":       { "category": "domain",       "payload": "{ text: string, parent_msg_id: string, token_idx: number }" },
+    "LLM_RESPONSE_DONE":     { "category": "domain",       "payload": "{ parent_msg_id: string, total_tokens: number, duration_ms: number }" },
+    "TTS_CHUNK_SENT":        { "category": "domain",       "payload": "{ chunk_id: string, text: string, voice_id: string }" },
+    "TTS_AUDIO_DELTA":       { "category": "domain",       "payload": "{ chunk_id: string, seq: number, bytes: number, duration_ms: number }" },
+    "TTS_AUDIO_END":         { "category": "domain",       "payload": "{ chunk_id: string, total_bytes: number, duration_ms: number, word_offsets_ms: number[] }" },
+    "AUDIO_PLAYED":          { "category": "domain",       "payload": "{ chunk_id: string, samples_played: number, duration_ms: number }" },
+    "TRANSCRIPT_DELTA":      { "category": "domain",       "payload": "{ chunk_id: string, word: string, char_start: number, char_end: number }" },
+    "MESSAGE_DISPLAYED":     { "category": "domain",       "payload": "{ msg_id: string, role: string, char_count: number }" },
+
+    "CONN_OPENING":          { "category": "communication", "payload": "{ transport: string, attempt: number }" },
+    "CONN_OPEN":             { "category": "communication", "payload": "{ session_id: string, transport: string, backend: string }" },
+    "CONN_CLOSING":          { "category": "communication", "payload": "{ reason: string }" },
+    "CONN_CLOSED":           { "category": "communication", "payload": "{ reason: string, uptime_ms: number }" },
+    "CONN_FAILED":           { "category": "communication", "payload": "{ code: string, message: string, attempt: number }" },
+    "CONN_RECONNECTING":     { "category": "communication", "payload": "{ attempt: number, backoff_ms: number }" },
+    "CONN_RECONNECTED":      { "category": "communication", "payload": "{ attempt: number, downtime_ms: number }" },
+
+    "VAD_SPEECH_START":      { "category": "voice_activity", "payload": "{ level: number, source: 'client'|'server' }" },
+    "VAD_SPEECH_END":        { "category": "voice_activity", "payload": "{ duration_ms: number, energy: number }" },
+    "VAD_TURN_COMPLETE":     { "category": "voice_activity", "payload": "{ confidence: number, semantic: boolean }" },
+
+    "INTERRUPT_REQUESTED":   { "category": "control", "payload": "{ reason: 'barge_in'|'manual'|'system', source: 'user'|'app' }" },
+    "INTERRUPT_ACK":         { "category": "control", "payload": "{ aborted_msg_id: string, aborted_at: string }" },
+    "MODE_CHANGED":          { "category": "control", "payload": "{ from: string, to: string, what: 'transport'|'realtime'|'llm'|'tts'|'stt' }" },
+    "CONFIG_UPDATED":        { "category": "control", "payload": "{ key: string, value: any }" },
+
+    "ERROR_RAISED":          { "category": "diagnostic", "payload": "{ code: string, message: string, source: string, stage?: string }" },
+    "LATENCY_OBSERVED":      { "category": "diagnostic", "payload": "{ kind: 'ttft'|'first_byte'|'turn', value_ms: number, stage: string }" },
+    "CIRCUIT_BREAKER_CHANGED": { "category": "diagnostic", "payload": "{ name: string, from: string, to: string, failures: number }" },
+    "STATE_CHANGED":         { "category": "diagnostic", "payload": "{ machine: string, from: string, to: string, reason: string }" }
+  }
+}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Realtime Voice demo</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#fafafa; --fg:#1d1d1f; --mut:#6e6e73; --acc:#0a7cff; --card:#fff; --line:#e3e3e8; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#111; --fg:#eee; --mut:#999; --card:#1b1b1d; --line:#2c2c30; } }
+    body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+    main { max-width:760px; margin:0 auto; padding:24px 16px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input[type=text] { flex:1; min-width:200px; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+    button { padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+    button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+    #state { font-weight:600; }
+    #log { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
+    .msg { padding:8px 12px; border-radius:10px; background:var(--card); border:1px solid var(--line); }
+    .msg.user { align-self:flex-end; }
+    .msg.cut { opacity:.6; }
+    .msg small { color:var(--mut); display:block; }
+    pre { font-size:12px; color:var(--mut); white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Realtime Voice (local)</h1>
+  <div class="row">
+    <input id="url" type="text" value="ws://localhost:8990/ws/voice">
+    <button id="connect" class="primary">Conectar + micro</button>
+    <button id="stop">Parar respuesta</button>
+    <button id="clear">Borrar contexto</button>
+  </div>
+  <p>Estado: <span id="state">idle</span></p>
+  <div class="row">
+    <input id="text" type="text" placeholder="…o escribe un mensaje">
+    <button id="send">Enviar</button>
+  </div>
+  <div id="log"></div>
+  <pre id="metrics"></pre>
+</main>
+<script type="module">
+  import { RealtimeVoiceClient } from './voice-client.js';
+
+  const $ = (id) => document.getElementById(id);
+  let rt, bubble;
+
+  function add(cls, text) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + cls;
+    d.textContent = text;
+    $('log').appendChild(d);
+    d.scrollIntoView({ block: 'end' });
+    return d;
+  }
+
+  $('connect').onclick = async () => {
+    rt?.disconnect();
+    rt = new RealtimeVoiceClient({ url: $('url').value });
+    rt.addEventListener('state', (e) => { $('state').textContent = e.detail.state; });
+    rt.addEventListener('transcript', (e) => add('user', e.detail.text));
+    rt.addEventListener('response-start', () => { bubble = add('ai', ''); });
+    rt.addEventListener('text', (e) => { if (bubble) bubble.textContent += e.detail.delta; });
+    rt.addEventListener('truncated', (e) => {
+      if (!bubble) return;
+      bubble.classList.add('cut');
+      const s = document.createElement('small');
+      s.textContent = `interrumpido · escuchado: "${e.detail.heard_text}"`;
+      bubble.appendChild(s);
+    });
+    rt.addEventListener('metrics', (e) => { $('metrics').textContent = JSON.stringify(e.detail, null, 2); });
+    rt.addEventListener('error', (e) => add('err', '⚠ ' + (e.detail.message ?? 'error')));
+    try {
+      await rt.connect();
+      await rt.startMic();
+    } catch (err) {
+      add('err', '⚠ ' + err.message);
+    }
+  };
+  $('stop').onclick = () => rt?.cancel();
+  $('clear').onclick = () => { rt?.clearConversation(); $('log').textContent = ''; };
+  const send = () => { const t = $('text').value.trim(); if (t && rt) { add('user', t); rt.sendText(t); $('text').value = ''; } };
+  $('send').onclick = send;
+  $('text').onkeydown = (e) => { if (e.key === 'Enter') send(); };
+</script>
+</body>
+</html>

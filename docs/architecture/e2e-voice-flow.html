@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kokoro TTS — E2E Voice Flow</title>
+<style>
+  :root {
+    --bg: #0f0f17;
+    --panel: #1a1a25;
+    --panel-2: #14141d;
+    --text: #d8d8e0;
+    --muted: #8888a0;
+    --accent: #00d4ff;
+    --stt: #2ed573;
+    --tts: #ff9f43;
+    --llm: #4a8cff;
+    --client: #b566ff;
+    --bus: #f5d042;
+    --border: #2a2a35;
+    --warn: #ffa502;
+    --gap: #ff4757;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', Tahoma, sans-serif; line-height: 1.55;
+  }
+  header {
+    padding: 32px 40px 24px; background: linear-gradient(135deg, #1a1a25 0%, #14141d 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 4px; color: var(--accent); font-size: 1.8em; }
+  header p { margin: 0; color: var(--muted); font-size: 0.95em; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 40px 80px; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 32px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 1em; color: var(--muted); }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  section { margin: 40px 0; scroll-margin-top: 20px; }
+  section h2 {
+    color: var(--accent); font-size: 1.4em; margin: 0 0 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  section h3 { color: #fff; font-size: 1.1em; margin: 20px 0 8px; }
+  section p { margin: 0 0 12px; }
+  .mermaid {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin: 16px 0;
+    overflow-x: auto;
+  }
+  code, pre {
+    font-family: 'Consolas', 'Cascadia Code', monospace;
+    background: #0a0a12; padding: 2px 6px; border-radius: 3px;
+    color: #f5d042; font-size: 0.88em;
+  }
+  pre { padding: 12px; overflow-x: auto; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0;
+    font-size: 0.85em; color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .callout {
+    background: rgba(0, 212, 255, 0.08); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 4px; margin: 12px 0; font-size: 0.92em;
+  }
+  .callout.warn {
+    background: rgba(255, 165, 2, 0.08); border-left-color: var(--warn);
+  }
+  .callout.warn strong { color: var(--warn); }
+  .callout.gap {
+    background: rgba(255, 71, 87, 0.08); border-left-color: var(--gap);
+  }
+  .callout.gap strong { color: var(--gap); }
+  .callout strong { color: var(--accent); }
+  .file { color: var(--accent); background: transparent; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9em; }
+  th, td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--panel); color: var(--muted); font-weight: 600; }
+  .cite { color: var(--muted); font-size: 0.82em; font-style: italic; margin: 0 0 8px; }
+  .cite code { color: var(--accent); background: transparent; padding: 0; }
+  .ref-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; font-size: 0.82em; }
+  .ref-row a {
+    color: var(--accent); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 3px;
+    padding: 1px 6px; text-decoration: none; font-family: 'Consolas', monospace;
+  }
+  .ref-row a:hover { background: var(--panel-2); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kokoro TTS — End-to-End Voice Flow</h1>
+  <p>Diagrama del ciclo completo de voz: desde el micrófono del usuario hasta el audio reproducido, pasando por STT, LLM (vía proxy), TTS, WebSocket y la capa de conversación. Refleja el código actual al 09-ago-2026 (build <code>kokoro-bargein-d-20260809-4</code>).</p>
+  <p><strong>Nota:</strong> lo que corre hoy es el <strong>monolito</strong> <code>client_example.html</code> (~4160 líneas, sirvido por <code>serve_nocache.py</code> en el puerto 5500). El nuevo cliente Vite modular (<code>client/src/</code>) está escrito y testeado pero aún no se sirve. Los gaps que antes marcaban estos diagramas (protocol v2, <code>mark_interrupted</code>, <code>word_offsets_ms</code>) fueron resueltos en las builds b/c/d del monolito.</p>
+</header>
+
+<main>
+
+<nav class="toc">
+  <h2>Índice</h2>
+  <ol>
+    <li><a href="#diagram-1">Visión general end-to-end (sequence)</a></li>
+    <li><a href="#diagram-2">Arquitectura de servidores (graph)</a></li>
+    <li><a href="#diagram-3">Pipeline STT (flowchart)</a></li>
+    <li><a href="#diagram-4">Pipeline TTS + protocol v2 (sequence)</a></li>
+    <li><a href="#diagram-5">Ciclo de vida del ConversationLog (state)</a></li>
+    <li><a href="#diagram-6">Flujo de barge-in (sequence)</a></li>
+    <li><a href="#diagram-7">Propagación de trace_id (flowchart)</a></li>
+    <li><a href="#diagram-8">Máquinas de estado (state)</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<section id="diagram-1">
+  <h2>1. Visión general end-to-end</h2>
+  <p>Una sola frase hablada por el usuario viaja por cinco servicios y se materializa como audio reproducido. El monolito (<code>client_example.html</code>) usa un EventBus interno para conectar STT → LLM → TTS sin callbacks manuales.</p>
+
+  <div class="ref-row">
+    <a href="https://github.com/search?q=repo%3Akokoro-tts+file%3Aclient_example.html+STT">client_example.html</a>
+    <a href="https://github.com/search?q=repo%3Akokoro-tts+file%3AsendChat">sendChat()</a>
+    <a href="https://github.com/search?q=repo%3Akokoro-tts+file%3ALLMStage">LLMStage</a>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--client)"></i> Cliente monolito (browser)</span>
+    <span><i style="background:var(--stt)"></i> STT (faster-whisper)</span>
+    <span><i style="background:var(--llm)"></i> LLM (LM Studio)</span>
+    <span><i style="background:var(--tts)"></i> TTS (Piper)</span>
+    <span><i style="background:var(--bus)"></i> EventBus (MessageBus)</span>
+  </div>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant Mic as Mic + VAD
+    participant M as Monolito<br/>client_example.html
+    participant STT as STT port 8100
+    participant Bus as EventBus
+    participant LLM as LLMStage
+    participant Proxy as llm proxy<br/>port 8990
+    participant LMS as LM Studio<br/>port 12344
+    participant WS as TTS WebSocket
+    participant Spk as AudioContext
+
+    U->>Mic: habla
+    Mic->>Mic: VAD on<br/>rms sobre threshold
+    Mic->>Mic: captura PCM 16kHz
+    Mic->>Mic: VAD off<br/>silenceMs slider
+    Mic->>Mic: encode WAV en memoria
+    Mic->>STT: POST transcribe<br/>audio capture.wav<br/>vad_filter false
+    STT->>STT: decode audio Result
+    STT->>STT: whisper transcribe
+    STT-->>Mic: 200 text language rtf
+    Mic->>Mic: sendChatWithMeta fromSTT true
+    Mic->>M: sendChat text j.text
+    M->>M: AppState.conversationLog<br/>.addUserTurn
+    M->>M: conversationLog.toMessages sys
+    M->>Bus: dispatch USER_TEXT<br/>meta fullMessages
+    Bus->>LLM: process
+    LLM->>Proxy: POST llm chat completions<br/>trace id
+    Proxy->>LMS: forward strip v1
+    LMS-->>Proxy: 200 choices delta
+    Proxy-->>LLM: 200
+    LLM->>Bus: emit LLM_TOKEN x N
+    Bus->>Bus: SPLIT chunks text a sentences
+    Bus->>M: emit TTS_REQUEST
+    M->>WS: send tts text chunk_id proto 2
+    WS-->>M: audio_start sample_rate
+    WS-->>M: audio_chunk header<br/>binary frame PCM<br/>audio_chunk header<br/>binary frame PCM
+    WS-->>M: audio_end<br/>word_offsets_ms duration_ms
+    M->>Spk: handleAudioData PCM
+    Spk-->>U: audio reproducido
+  </div>
+
+  <div class="callout">
+    <strong>Protocol v2 consumido correctamente (resuelto en build b/c):</strong> el handler <code>AppState.ws.onmessage</code> (línea 2668) distingue metadata JSON (<code>audio_start</code>, <code>audio_chunk</code>, <code>audio_end</code>, <code>error</code>, <code>config_ack</code>) de frames binarios PCM. Los headers <code>audio_chunk</code> se registran pero NO se interpretan como audio (línea 2681). El campo <code>word_offsets_ms</code> se consume en <code>audio_start</code> y <code>audio_end</code> (líneas 2751/2762) y alimenta el truncate del barge-in. Los frames binarios se descartan si no hay run activo (línea 2691).
+  </div>
+
+  <p class="cite">Monolito: <code class="file">client_example.html:2668-2705</code> (ws.onmessage + fence) · <code class="file">client_example.html:2744-2771</code> (audio_start/audio_end + word_offsets_ms) · <code class="file">client_example.html:3464-3563</code> (stopGeneration Gold)</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-2">
+  <h2>2. Arquitectura de servidores</h2>
+  <p>Tres procesos Python sirviendo tres funciones distintas. LM Studio es externo. El proxy <code>/llm</code> vive <strong>dentro</strong> del proceso TTS (FastAPI) — no es un proceso separado.</p>
+
+  <div class="mermaid">
+graph TB
+    subgraph Browser [Browser - cliente_example.html]
+        HTML[client_example.html]
+        WebAudio[Web Audio API]
+        Mic[getUserMedia + ScriptProcessor]
+        EventBus[MessageBus in-process]
+        ConvoLog[AppState.conversationLog]
+    end
+
+    subgraph Python [Procesos Python]
+        STT[STT server<br/>faster-whisper<br/>port 8100]
+        HTTP[http.server<br/>port 5500 - solo archivos]
+        TTSProc[TTS server - FastAPI<br/>port 8990]
+        LLMRoute["POST /llm slash anything<br/>httpx async client"]
+    end
+
+    subgraph External [Externo]
+        LMS[LM Studio<br/>Qwen3.5 o Gemma<br/>port 12344]
+        PiperLib[Piper Python<br/>ONNX runtime]
+    end
+
+    HTML --> POST_transcribe
+    POST_transcribe[POST transcribe] --> STT
+    HTML --> WS_tts
+    WS_tts[WS ws slash tts] --> TTSProc
+    HTML --> POST_llm
+    POST_llm[POST llm chat] --> LLMRoute
+    HTML --> WebAudio
+    HTML --> Mic
+
+    HTML --> EventBus
+    EventBus --> ConvoLog
+
+    LLMRoute --> forward_lms
+    forward_lms[httpx forward] --> LMS
+    TTSProc --> PiperLib
+
+    HTTP -.sirve.-> HTML
+  </div>
+
+  <div class="callout">
+    <strong>Puertos y roles reales (verificado con <code>netstat</code>):</strong>
+    <table>
+      <tr><th>Puerto</th><th>Proceso</th><th>Endpoints</th></tr>
+      <tr><td>5500</td><td><code>python serve_nocache.py</code></td><td>GET /<code>client/client_example.html</code> (sin cache: siempre 200, nunca 304)</td></tr>
+      <tr><td>8100</td><td><code>uvicorn server.stt.stt_server</code></td><td>POST /transcribe · GET /health · GET /metrics · GET /models · GET /session/state</td></tr>
+      <tr><td>8990</td><td><code>uvicorn server.tts.websocket_server</code></td><td>WS /ws/tts · POST /llm/{path} (proxy) · GET /health · GET /metrics · GET /voices · GET /config · GET /session/state · GET /stats · GET /backend</td></tr>
+      <tr><td>12344</td><td>LM Studio (externo)</td><td>v1/chat/completions · v1/models</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-3">
+  <h2>3. Pipeline STT</h2>
+  <p>El endpoint <code>POST /transcribe</code> aplica el patrón <code>Result T E</code> en cada paso: las excepciones se convierten en valores, y la <code>ConversationLog</code> ve solo resultados finales. El handler también instrumenta el registry de métricas (counters + histograms) y crea spans en el Tracer.</p>
+
+  <div class="mermaid">
+flowchart TD
+    Start[POST transcribe<br/>multipart upload] --> Read[audio.read]
+    Read --> SizeCheck{bytes gt 0<br/>and lte 10MB}
+    SizeCheck -->|no| ErrEmpty[HTTPException 400 o 413]
+    SizeCheck -->|yes| Decode[decode audio bytes<br/>Result approach]
+    Decode -->|ok audio sr dur| Load[get_model cached]
+    Decode -->|err| ErrDecode[HTTPException 400]
+    Load --> Trans[loop.run_in_executor<br/>whisper.transcribe]
+    Trans --> Result[Result with text lang rtf]
+    Result --> Metrics[reg.histogram elapsed_ms<br/>reg.counter success]
+    Result --> Resp[200 OK + X-Trace-Id]
+  </div>
+
+  <p class="cite"><code class="file">server/stt/stt_server.py:189-340</code> (handler) · <code class="file">server/shared/result.py:33-77</code> (Result pattern)</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-4">
+  <h2>4. Pipeline TTS + protocol v2</h2>
+  <p>El servidor TTS emite los eventos del protocol v2. En cada chunk de Piper, envía un header JSON <code>audio_chunk</code> antes del frame binario PCM. El campo <code>word_offsets_ms</code> en <code>audio_end</code> es lo que permitiría al cliente iluminar palabra-por-palabra.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Cliente
+    participant WS as TTS WebSocket
+    participant P as process_tts_request
+    participant B as Piper backend
+
+    C->>WS: send config voice speed format
+    WS-->>C: connected backend sample_rate<br/>protocol_versions 1 2
+
+    C->>WS: send tts text chunk_id proto 2
+    WS->>P: process_tts_request
+    P->>B: generate_streaming text lang speed
+
+    loop for each Piper chunk
+        P-->>WS: chunk
+        WS-->>C: audio_chunk chunk_id seq<br/>sample_offset samples duration_ms
+        WS-->>C: bytes PCM f32 16kHz
+    end
+
+    P-->>WS: chunk final
+    WS-->>C: audio_end chunk_id<br/>word_offsets_ms duration_ms<br/>word_count
+    WS-->>C: audio_end final true
+  </div>
+
+  <div class="callout">
+    <strong>Protocol v2 consumido en el monolito (resuelto — build c):</strong>
+    <ul>
+      <li><code>audio_start</code> — consumido (set request_id + <code>activeRunId</code>, reset buffer, toma <code>word_offsets_ms</code>)</li>
+      <li><code>audio_chunk</code> JSON — consumido como metadata (línea 2681): se guarda en <code>pendingAudioChunk</code> y NO se reproduce como PCM</li>
+      <li><code>audio_end</code> — consumido (log, schedule playback, toma <code>word_offsets_ms</code>)</li>
+      <li>frames binarios PCM — reproducidos solo si hay run activo (fence anti-stale, línea 2691)</li>
+    </ul>
+    El campo <code>word_offsets_ms</code> alimenta el truncate de la <code>ConversationLog</code> durante el barge-in (línea 3539).
+  </div>
+
+  <p class="cite">Servidor: <code class="file">server/tts/websocket_server.py:837-893</code> · Monolito: <code class="file">client_example.html:2668-2705</code> · Heurística de word offsets: <code class="file">server/tts/websocket_server.py:282-296</code></p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-5">
+  <h2>5. Ciclo de vida del <code>ConversationLog</code></h2>
+  <p>Cuatro estados posibles por turno. La diferencia crítica entre <code>interrupted</code> y <code>canceled</code> es que el primero <b>se mantiene en el contexto del LLM</b> (comunicación fluida) y el segundo se borra (privacy mode).</p>
+
+  <div class="mermaid">
+stateDiagram-v2
+    [*] --> streaming: streamUserPartial
+    streaming --> streaming: update partial
+    streaming --> finalized: commit<br/>or addUserTurn
+    streaming --> finalized: addAssistantTurn
+    finalized --> interrupted: mark_interrupted
+    finalized --> canceled: cancel_finalized
+    streaming --> canceled: cancel_stream
+    canceled --> [*]
+    interrupted --> finalized: idempotent re interrupt
+    note right of interrupted
+        interrupted se preserva en to_messages
+        el LLM ve el partial
+        comunicacion fluida
+    end note
+    note right of canceled
+        canceled se EXCLUYE de to_messages
+        sintetico solo si cancelMode es note o summary
+    end note
+  </div>
+
+  <h3>Modos de cancelación (sólo aplican a <code>canceled</code>)</h3>
+  <table>
+    <tr><th>Modo</th><th>Comportamiento</th></tr>
+    <tr><td><code>silent</code></td><td>El turn se borra sin inyectar nada. Privacy total.</td></tr>
+    <tr><td><code>note</code> (default)</td><td>Inyecta system turn: <i>[Previous assistant response was interrupted. Partial content: ...]</i></td></tr>
+    <tr><td><code>summary</code></td><td>Inyecta system turn con la primera oración del partial.</td></tr>
+  </table>
+
+  <h3>Quién llama a qué</h3>
+  <table>
+    <tr><th>Cliente</th><th>Trigger</th><th>Método</th></tr>
+    <tr><td>Monolito (<code>stopGeneration()</code>)</td><td>Botón "Stop" o barge-in VAD</td><td><code>conversationLog.truncate(playedMs, wordOffsets)</code> + <code>mark_interrupted('assistant','barge-in')</code> (implementado — build c, línea 3539-3544)</td></tr>
+    <tr><td>Vite (<code>localWS.js:250-264</code>)</td><td>barge-in o cancel</td><td><code>conversationLog.mark_interrupted</code> o <code>cancelFinalized</code> según <code>cancelOnInterrupt</code></td></tr>
+  </table>
+
+  <p class="cite"><code class="file">server/shared/conversation/log.py:198-237</code> · <code class="file">server/shared/conversation/cancel_modes.py:39-66</code></p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-6">
+  <h2>6. Flujo de barge-in</h2>
+  <p>Cuando el usuario habla mientras el asistente está sonando: el audio local se corta, el LLM stream se cancela, el TTS deja de enviar chunks, y el partial del asistente queda en la <code>ConversationLog</code> marcado como <code>interrupted</code> para que el próximo turno del LLM tenga contexto.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant Mic as Mic VAD
+    participant M as Monolito
+    participant WS as TTS WebSocket
+    participant Log as ConversationLog
+
+    Note over WS: asistente hablando<br/>audioSource playing<br/>ws.binary frames en queue
+
+    U->>Mic: empieza a hablar
+    Mic->>M: vad.speech.start
+    M->>M: stopGeneration<br/>currentSource.stop<br/>audioQueue = empty<br/>playbackTimer = null
+    M->>WS: ws.send type interrupt
+    WS-->>WS: cancel stream reader
+    WS-->>M: deja de enviar frames
+    M->>Log: log.mark_interrupted<br/>partial se preserva
+
+    Note over Log: proximo turn del usuario ve<br/>el partial del asistente en el contexto
+
+    U->>Mic: termina de hablar
+    Mic->>Mic: encode WAV
+    Mic->>M: STT transcribe
+    M->>M: STT response text
+    M->>Log: addUserTurn finalized
+    Log->>M: conversationLog.toMessages sys
+    M->>M: POST llm chat completions<br/>messages incluye partial asistente
+  </div>
+
+  <div class="callout">
+    <strong>Configuración (<code>ConfigStore</code>):</strong> <code>cancelOnInterrupt = true</code> cambia el comportamiento a <i>privacy mode</i> (cancel_finalized en vez de mark_interrupted). Por default es <code>false</code> (interrupted, comunicación fluida).
+  </div>
+
+  <div class="callout">
+    <strong>Resuelto en build b/c (barge-in Gold):</strong> <code>stopGeneration()</code> (línea 3464) ahora ejecuta el cancel end-to-end: anti-loop rate limiter, stop de audio local + vaciado de colas, <code>MessageBus.emit(INTERRUPT)</code> (aborta <code>LLMStage</code> con AbortController), <code>ws.send {type:'interrupt', run_id, reason}</code>, <code>conversationLog.truncate(playedAudioMs, wordOffsetsMs)</code> + <code>mark_interrupted('assistant','barge-in')</code> (línea 3539-3544), <code>activeRunId = null</code> (los frames binarios tardíos se descartan en la línea 2691) y re-arm del mic (FSM → INTERRUPTED → RECORDING).
+  </div>
+
+  <p class="cite">Monolito: <code class="file">client_example.html:3464-3563</code> (stopGeneration Gold) · Fence: <code class="file">client_example.html:2668-2697</code> · Vite: <code class="file">client/src/realtime/localWS.js:250-269</code> (interrupt)</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-7">
+  <h2>7. Propagación de <code>trace_id</code></h2>
+  <p>El <code>TraceMiddleware</code> de FastAPI abre un span por request HTTP/WS y setea <code>trace_id</code> en un <code>contextvar</code>. Un thread watcher copia ese valor a un <code>contextvar</code> separado que el <code>logging.Filter</code> inyecta en cada <code>LogRecord</code>. Resultado: un <code>grep "trace=abc-123"</code> muestra todo el flujo de una sesión en los logs.</p>
+
+  <div class="mermaid">
+flowchart LR
+    subgraph Browser [Cliente]
+        Req[fetch o WS send<br/>Header X-Trace-Id abc-123]
+    end
+    subgraph FastAPI [FastAPI app]
+        MW[TraceMiddleware<br/>contextvar trace_ctx_var]
+    end
+    subgraph Watch [threading watcher]
+        Sync[trace_id_var set abc-123]
+    end
+    subgraph LogFmt [LogRecord]
+        Filter[TraceIdFilter]
+        Rec[record.trace_id = abc-123]
+    end
+
+    Req --> Header
+    Header[Header X-Trace-Id] --> MW
+    MW -->|contextvar| Sync
+    Sync -->|poll 50ms| Filter
+    Filter --> Rec
+    Rec --> Out[log line con trace abc-123]
+    Out --> Grep[grep trace abc-123<br/>en logs]
+  </div>
+
+  <p class="cite"><code class="file">server/shared/observability/middleware.py:18-58</code> · <code class="file">server/shared/observability/context.py:32-50</code> · <code class="file">server/tts/websocket_server.py:65-94</code> (patching)</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="diagram-8">
+  <h2>8. Máquinas de estado (FSMs)</h2>
+  <p>Cinco state machines. La nueva <code>ConversationStateMachine</code> rastrea el ciclo semántico de un turno. Las otras cuatro modelan capas inferiores (conexión, turno de habla, pipeline, mensaje del bus).</p>
+
+  <div class="mermaid">
+stateDiagram-v2
+    direction TB
+
+    state Connection {
+        [*] --> IDLE
+        IDLE --> CONNECTING: start
+        CONNECTING --> OPEN: open
+        CONNECTING --> ERROR: failed
+        OPEN --> CLOSING: close
+        OPEN --> ERROR: dropped
+        CLOSING --> CLOSED
+        ERROR --> IDLE: reset
+        CLOSED --> IDLE: reset
+    }
+
+    state Turn {
+        [*] --> idle
+        idle --> user_speaking: VAD start
+        user_speaking --> user_done: VAD end or STT
+        user_done --> model_thinking: LLM dispatch
+        model_thinking --> model_speaking: first token
+        model_speaking --> idle: complete
+        user_speaking --> interrupted: barge-in
+        model_speaking --> interrupted: barge-in
+        model_thinking --> interrupted: cancel
+        interrupted --> idle: reset
+    }
+
+    state Pipeline {
+        [*] --> ready
+        ready --> streaming: start
+        streaming --> ready: done
+        streaming --> failed
+        streaming --> interrupted
+        failed --> ready: reset
+        interrupted --> ready: reset
+    }
+
+    state Message {
+        [*] --> created
+        created --> queued: bus dispatch
+        queued --> stt
+        queued --> llm
+        stt --> llm
+        llm --> split
+        split --> tts
+        tts --> playing
+        playing --> completed
+        stt --> failed
+        llm --> failed
+        split --> failed
+        tts --> failed
+        tts --> interrupted
+        playing --> interrupted
+        completed --> [*]
+        failed --> [*]
+        interrupted --> [*]
+    }
+
+    state Conversation {
+        [*] --> IDLE_C
+        IDLE_C --> STREAMING_C: LLM begin
+        STREAMING_C --> DELIVERED_C: TTS done
+        STREAMING_C --> CANCELED_C: barge-in
+        DELIVERED_C --> COMMITTED_C: log commit
+        DELIVERED_C --> CANCELED_C: privacy mode
+        COMMITTED_C --> [*]
+        CANCELED_C --> IDLE_C: reset
+    }
+  </div>
+
+  <p class="cite"><code class="file">client/src/state/machine.js:91-188</code> · <code class="file">server/shared/state/machines.py</code> · <code class="file">server/shared/conversation/machine.py</code></p>
+</section>
+
+<footer style="margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85em; text-align: center;">
+  Kokoro TTS — build <code>kokoro-bargein-d-20260809-4</code> · 09-ago-2026 · 4 servicios (STT + TTS/proxy LLM + HTTP + LM Studio externo) · 5 state machines · 1 capa de conversación · Barge-in Gold end-to-end funcional
+</footer>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      themeVariables: {
+        primaryColor: '#1a1a25',
+        primaryTextColor: '#d8d8e0',
+        primaryBorderColor: '#2a2a35',
+        lineColor: '#00d4ff',
+        secondaryColor: '#14141d',
+        tertiaryColor: '#0a0a12',
+        fontFamily: 'Segoe UI, Tahoma, sans-serif',
+        fontSize: '13px',
+      },
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+      sequence:  { useMaxWidth: true, diagramMarginX: 20, diagramMarginY: 20 },
+      class:     { useMaxWidth: true },
+    });
+  } else {
+    document.querySelectorAll('.mermaid').forEach(el => {
+      el.innerHTML = '<pre style="color:#888">Mermaid no cargo (offline?). Diagrama en texto plano arriba del bloque.</pre>';
+    });
+  }
+</script>
+
+</body>
+</html>

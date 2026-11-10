@@ -1,0 +1,49 @@
+# TTS WebSocket Server - Dependencies
+# Install with: pip install -r server/tts/requirements-tts.txt
+
+# Web server (WebSocket + REST API + LLM proxy)
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=12.0
+httpx>=0.27.0
+python-multipart
+
+# Configuration
+pydantic>=2
+pydantic-settings>=2
+python-dotenv
+
+# Audio
+numpy
+scipy
+soundfile
+sounddevice
+
+# Default TTS backend: Piper (VITS/ONNX, castellano nativo)
+piper-tts
+
+# Voice downloading from HuggingFace
+huggingface-hub>=0.24.0
+requests
+
+# Realtime voice (/ws/voice): STT Parakeet TDT v3 (ONNX) + VAD Silero (de faster-whisper)
+onnx-asr>=0.12
+faster-whisper>=1.1
+
+# Process metrics (/metrics, /session/state)
+psutil
+
+# ---------------------------------------------------------------------------
+# Optional - install only if you use them
+# ---------------------------------------------------------------------------
+# Kokoro backend / legacy voice-commands + VAD (server/shared/speech.py, commands.py)
+#   torch
+#   transformers
+#   phonemizer        # requires eSpeak NG installed
+#   munch
+#   pyannote.audio    # requires HUGGINGFACE_TOKEN
+# XTTS backend (voice cloning, GPU recommended)
+#   TTS
+# Event store strategies
+#   asyncpg           # postgres
+#   aioodbc           # sqlserver
